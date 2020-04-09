@@ -141,7 +141,7 @@ def historical(history: str):
 
 # v1 does not do sig-fig truncation
 @app.route("/api/v1/historical/<string:history>", methods=["GET"])
-def historical(history: str):
+def historical_v1(history: str):
 
     # TODO: probably a good idea to validate history conforms
     # to YYYY-MM-DD before use
