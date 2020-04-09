@@ -106,7 +106,7 @@ def index():
 
 #
 # the latest here refer to the latest API version
-# the v1 anticipates potential future changes
+# v2 adds (TODO:fake) sig-figs
 #
 @app.route("/api/latest/historical/<string:history>", methods=["GET"])
 @app.route("/api/v2/historical/<string:history>", methods=["GET"])
@@ -126,7 +126,7 @@ def historical(history: str):
     # https://stackoverflow.com/questions/783897/truncating-floats-in-python
     # but none for significant figure which is required for exchange rates.
     # Most rates probably would be okay since the number is close to 1.
-    # But for GBP-JPY (and similar pairing) where the rate is >100 one way, 
+    # But for GBP-JPY (and similar pairing) where the rate is >100 one way,
     # the reverse rate is easily three places to the right of the decimal
     # point (e.g., 0.00742...) which leads to a significant loss of
     # precision if we naively take 6 digits to the right of the decimal point.
