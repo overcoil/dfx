@@ -136,7 +136,7 @@ def historical(history: str):
     # inside atom...
 
     # 6 digits
-    trate = float(fnum[:rate.find('.') + 6 + 1])
+    trate = float(rate[:rate.find('.') + 6 + 1])
     return ( f"1 {sourceCurr} was worth {trate} {targetCurr} on {history}" )
 
 # v1 does not do sig-fig truncation
