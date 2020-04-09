@@ -26,6 +26,23 @@ app = Flask(__name__)
 FIXER_API_ROOT= "http://data.fixer.io/api"
 FIXER_API_LATEST = FIXER_API_ROOT + "/latest"
 
+def sigfig(f: float, fig: int = 6):
+    # there's a whole lot of ideas on truncation and rounding at:
+    #   https://stackoverflow.com/questions/783897/truncating-floats-in-python
+    # but none for significant figure which is required for exchange rates.
+    # Most rates probably would be okay since the number is close to 1.
+    # But for GBP-JPY (and similar pairing) where the rate is >100 one way,
+    # the reverse rate is easily three places to the right of the decimal
+    # point (e.g., 0.00742...) which leads to a significant loss of
+    # precision if we naively take 6 digits to the right of the decimal point.
+    # we need to do better
+
+    # TODO: but we're lazy at this time and this is mainly to test
+    # github integration inside atom...
+    fstr = str(f)
+
+    return float(fstr[:fstr.find('.') + fig + 1])
+
 
 #
 # this is the core function to retrieve and calculates the rates
@@ -40,7 +57,7 @@ FIXER_API_LATEST = FIXER_API_ROOT + "/latest"
 # Return:
 #   <float>: exchange rate from currency s to currency t (1 s = <float> t)
 #
-def rate_core(api: str, s: str, t: str, key: str):
+def rate_core(api: str, s: str, t: str, key: str, apiver: int=1):
 
     if key is None:
         raise Exception("ERROR: missing access key.")
@@ -52,11 +69,17 @@ def rate_core(api: str, s: str, t: str, key: str):
         raise Exception("ERROR: dependent API request to fixer.io unsuccessful.")
     data = res.json()
 
+
     # note that the 2 rates are guaranteed to exist since we have a default
     # value of EUR for both currency. If this guarantee isn't in place,
     # you will need to validate the existence of the rates!
-    return rate_calculator( s, t, data["rates"][s], data["rates"][t] )
+    rate = rate_calculator( s, t, data["rates"][s], data["rates"][t] )
 
+    if (apiver == 1):
+        return rate
+    else:
+        # apiver == 2
+        return sigfig(rate, 6)
 
 #
 # this is the core function to derive the rate indirectly
@@ -93,11 +116,8 @@ def rate_calculator(sourceCurr: str, targetCurr: str,
         else:
             # we do a bit of gymnastic ((1/r1) / (1/r2))
             rate = r2 / r1
-
-    # TODO: do some sig-fig trimming
+            
     return rate
-
-
 
 @app.route("/")
 def index():
@@ -120,23 +140,9 @@ def historical(history: str):
     targetCurr = request.args.get('symbols', default = 'EUR', type = str)
     accesskey = request.args.get('access_key', type = str)
 
-    rate = rate_core(historical_api, sourceCurr, targetCurr, accesskey)
+    # note that we invoke apiver=2
+    trate = rate_core(historical_api, sourceCurr, targetCurr, accesskey, 2)
 
-    # there's a whole lot of ideas on truncation and rounding at:
-    # https://stackoverflow.com/questions/783897/truncating-floats-in-python
-    # but none for significant figure which is required for exchange rates.
-    # Most rates probably would be okay since the number is close to 1.
-    # But for GBP-JPY (and similar pairing) where the rate is >100 one way,
-    # the reverse rate is easily three places to the right of the decimal
-    # point (e.g., 0.00742...) which leads to a significant loss of
-    # precision if we naively take 6 digits to the right of the decimal point.
-    # we need to do better
-
-    # TODO: but we're lazy and this is mainly to test github integration
-    # inside atom...
-
-    # 6 digits
-    trate = float(rate[:rate.find('.') + 6 + 1])
     return ( f"1 {sourceCurr} was worth {trate} {targetCurr} on {history}" )
 
 # v1 does not do sig-fig truncation
